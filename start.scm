@@ -10,6 +10,7 @@
     (lambda (mb eves)
       (letrec(
 	      (fwid (ywCntWidgetFather mb))
+	      (mbm (ywCntGetEntry (ywCntWidgetFather mb) 1))
 	      (cur_pl (lambda () (yeGetIntAt fwid "cur_player")))
 	      (cur_u_idx (lambda () (yeGetIntAt fwid "cur_unit")))
 	      (p_units (lambda () (if (= (cur_pl) 0)
@@ -18,14 +19,40 @@
 	      (m_state (lambda () (yeGetIntAt fwid "map_state")))
 	      (c_u (lambda () (yeGet (p_units) (cur_u_idx))))
 	      (c_u_p (lambda () (yeGet (c_u) "pos")))
-	      (choose_guy_next_state
+ 	      (choose_guy_next_state
 	       (lambda () (begin
 		   (yeSetIntAt fwid "map_state" medba_map_move_state)
 		   )))
+	      (map_out
+	       (lambda ()
+		 (begin
+		   (yeSetIntAt fwid "current" 1)
+		   (yeSetIntAt fwid "map_state" medba_map_choose_unit_state)
+		   (yeSetStringAt mbm "pre-text" "")
+		   )))
+ 	      (mv_guy_next_out (lambda () (map_out)))
 	      (mv_guy (lambda ()
 			(begin
-			  (display "blobloblo")
+			  (ywMapRemoveByStr mb (c_u_p) "cursor")
+			  (if (yevIsKeyDown eves Y_ESC_KEY)
+			      (mv_guy_next_out)
+			      (ywMapPushElem mb (yeCreateInt 2) (c_u_p) "cursor")
+			      )
 			  )))
+	      (mk_u_nfo (lambda (str)
+			  (begin
+			    (yeStringAdd str "unit type:")
+			    (yeAddEnt str (yeGet (c_u) "type"))
+			    (yeStringAdd str "\nHP:")
+			    (yeStringAddInt str (yeGetIntAt (c_u) "hp"))
+			    (yeStringAdd str "\nMove Point:")
+			    (yeStringAddInt str (yeGetIntAt (c_u) "mv"))
+			    (if (= (yeGetIntAt (c_u) "have_attack") 0)
+				(yeStringAdd str "\nCan Attack")
+				(yeStringAdd str "\nAlerady Attack"))
+			    (yeStringAdd str "\n-------------")
+			    )
+			  ))
 	      (choose_guy (lambda ()
 		(begin
 		  (ywMapRemoveByStr mb (c_u_p) "cursor")
@@ -34,10 +61,10 @@
 		      (yeAddAt fwid "cur_unit" (- 1)))
 		  (if (yevIsKeyDown eves Y_RIGHT_KEY)
 		      (yeIncrAt fwid "cur_unit" ))
-
-
+		  (yeSetStringAt mbm "pre-text" "")
+		  (mk_u_nfo (yeGet mbm "pre-text"))
 		  (if (yevIsKeyDown eves Y_ESC_KEY)
-		      (yeSetIntAt fwid "current" 1)
+		      (map_out)
 		      (ywMapPushElem mb (yeCreateInt 2) (c_u_p) "cursor")
 		      )
 		  (if (yevIsKeyDown eves Y_ENTER_KEY)
@@ -132,6 +159,7 @@
 	      (begin
 		(yeCreateString "menu" mbm "<type>")
 		(yeCreateString "rgba: 127 127 127 255" mbm "background")
+		(yeCreateString "" mbm "pre-text")
 		(ywMenuPushEntry mbm "Move/Attack"
 				 (yeCreateFunction "medba_tomap"))
 		(ywMenuPushEntry mbm "End Turn"
@@ -175,6 +203,8 @@
 		    (yeCreateInt range mb "range")
 		    (yeCreateInt rid mb "id")
 		    (ywPosCreate 0 0 mb "pos")
+		    (yeCreateInt 5 mb "mv")
+		    (yeCreateInt 0 mb "have_attack")
 		    (mk_dumb_rend (yeCreateArray mb "rend_info0") 0)
 		    (mk_dumb_rend (yeCreateArray mb "rend_info1") 130)
 		    )))
