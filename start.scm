@@ -74,6 +74,10 @@
 			      ))
 		 (ywMapMoveByEntity mb (c_u_p) to (c_u))
 		 (ywPosSet (c_u_p) to)
+		 (if (not (= (mvp) 0))
+		     (yeAddAt (c_u) "mv" (- (- (yeLen (mv_trace)) 1))))
+		 (display (mvp))
+		 (display "  <----\n")
 		 ))
 
 	      (mv_guy
@@ -88,7 +92,7 @@
 		      (restore_p
 		       (lambda (xy)
 			 (begin
-			   (ywPosAddXY (c_c_p) (car xy) (cdr xy))
+			   (ywPosSet (c_c_p) (car xy) (cdr xy))
 			   (ywMapRemoveByStr mb (c_c_p) "mv-trace")
 			   (yePopBack (mv_trace))
 			   (mk_u_nfo (yeGet mbm "pre-text"))
@@ -99,20 +103,31 @@
 			   (ywMapPushElem mb (yeCreateInt 2) (c_c_p) "mv-trace")
 			   (yeCreateCopy (c_c_p) (mv_trace))
 			   (mk_u_nfo (yeGet mbm "pre-text"))
-			   (ywPosAddXY (c_c_p) (car xy) (cdr xy))
+			   (ywPosSet (c_c_p) (car xy) (cdr xy))
 			   )))
+		      (chk_case
+		       (lambda (xy)
+			 (if (ywMapContainEnt mb (car xy) (cdr xy) (c_u)) 0
+			     (if (ywMapContainStr mb (car xy) (cdr xy) "p0u") 1
+				 (if (ywMapContainStr mb (car xy) (cdr xy) "p1u") 2 0)))
+			 )
+		       )
 		      (chk_can_mv
-		       (lambda (xy) (if (ywPosIsSame (l_trc)
-						     (+ (ywPosX (c_c_p))(car xy))
-						     (+ (ywPosY (c_c_p))(cdr xy)))
-					(restore_p xy)
-					(if (< (yeLen (mv_trace)) (+ (mvp) 1))
-					    (mv_p xy)))
-			       )
+		       (lambda (xy)
+			 (if (= (chk_case xy) 0)
+			     (if (ywPosIsSame (l_trc)
+					      (car xy) (cdr xy))
+				 (restore_p xy)
+				 (if (< (yeLen (mv_trace)) (+ (mvp) 1))
+				     (mv_p xy))))
+			 )
 		       )
 		      (chk_mv
 		       (lambda (x y) (if (or (not (= x 0)) (not (= y 0)))
-					 (chk_can_mv (cons x y))))
+					 (chk_can_mv
+					  (cons (+ (ywPosX (c_c_p)) x)
+						(+ (ywPosY (c_c_p)) y))
+					  )))
 		       )
 		      )
 		   (begin
@@ -228,7 +243,7 @@
 					   (+ (* (cdr arg) 2) 3)
 					   (- medba_map_h 1) )
 			     (yeCreateInt 0 el "player")
-			     (ywMapPushElem (car arg) el (yeGet el "pos"))
+			     (ywMapPushElem (car arg) el (yeGet el "pos") "p0u")
 			     (cons (car arg) (+ (cdr arg) 1))
 			     ) (cons mb 0))
 		(yeForeach (yeGet mbc  "p1")
@@ -237,7 +252,7 @@
 			     (ywPosSetInts (yeGet el "pos")
 					   (+ (* (cdr arg) 2) 3) 0 )
 			     (yeCreateInt 1 el "player")
-			     (ywMapPushElem (car arg) el (yeGet el "pos"))
+			     (ywMapPushElem (car arg) el (yeGet el "pos") "p1u")
 			     (cons (car arg) (+ (cdr arg) 1))
 			     ) (cons mb 0))
 
