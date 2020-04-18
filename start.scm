@@ -36,9 +36,18 @@
 		   (yeSetIntAt fwid "map_state" medba_map_choose_unit_state)
 		   (yeSetStringAt mbm "pre-text" "")
 		   )))
- 	      (mv_guy_next_out (lambda () (map_out)))
- 	      (mvp (lambda () (yeGetIntAt (c_u) "mv")))
+ 	      (mv_guy_next_out
+	       (lambda () (begin
+			    (yeForeach (mv_trace)
+				       (lambda (el a)
+					 (ywMapRemoveByStr mb el "mv-trace")
+					 ))
+			    (yeClearArray (mv_trace))
+			    (map_out))))
+
+	      (mvp (lambda () (yeGetIntAt (c_u) "mv")))
 	      (have_atk (lambda () (yeGetIntAt (c_u) "have_attack")))
+
  	      (chk_mv_x
 	       (lambda () (if (yevIsKeyDown eves Y_LEFT_KEY) -1
 			      (if (yevIsKeyDown eves Y_RIGHT_KEY) 1 0) )))
@@ -47,26 +56,64 @@
 			      (if (yevIsKeyDown eves Y_DOWN_KEY) 1 0) )))
 	      (mv_guy
 	       (lambda ()
-		 (begin
-		   (display (mv_trace))
-		   (display (ywPosIsSame (c_u_p) (yeLast (mv_trace)) ))
-		   (display  (c_c_p)) ; (c_c_p) mean current cursor pos, need implementations
-		   (display (yeLast (mv_trace)))
-		   (ywMapRemoveByStr mb (c_c_p) "cursor")
-		   (ywPosAddXY (c_c_p) (chk_mv_x) (chk_mv_y))
-		   (if (yevIsKeyDown eves Y_ESC_KEY)
-		       (mv_guy_next_out)
-		       (ywMapPushElem mb (yeCreateInt 1) (c_c_p) "cursor")
+		 (letrec
+		     (
+		      (mv_guy_enter
+		       (lambda () (begin
+				    (ywMapMoveByEntity mb (c_u_p) (c_c_p) (c_u))
+				    (ywPosSet (c_u_p) (c_c_p))
+				    (mv_guy_next_out))))
+		      (l_trc (lambda () (yeLast (mv_trace))))
+		      (restore_p
+		       (lambda (xy)
+			 (begin
+			   (ywPosAddXY (c_c_p) (car xy) (cdr xy))
+			   (ywMapRemoveByStr mb (c_c_p) "mv-trace")
+			   (yePopBack (mv_trace))
+			   (mk_u_nfo (yeGet mbm "pre-text"))
+			   )))
+		      (mv_p
+		       (lambda (xy)
+			 (begin
+			   (ywMapPushElem mb (yeCreateInt 2) (c_c_p) "mv-trace")
+			   (yeCreateCopy (c_c_p) (mv_trace))
+			   (mk_u_nfo (yeGet mbm "pre-text"))
+			   (ywPosAddXY (c_c_p) (car xy) (cdr xy))
+			   )))
+		      (chk_can_mv
+		       (lambda (xy) (if (ywPosIsSame (l_trc)
+						     (+ (ywPosX (c_c_p))(car xy))
+						     (+ (ywPosY (c_c_p))(cdr xy)))
+					(restore_p xy)
+					(if (< (yeLen (mv_trace)) (+ (mvp) 1))
+					    (mv_p xy)))
+			       )
 		       )
-		   )))
+		      (chk_mv
+		       (lambda (x y) (if (or (not (= x 0)) (not (= y 0)))
+					 (chk_can_mv (cons x y))))
+		       )
+		      )
+		   (begin
+		     (ywMapRemoveByStr mb (c_c_p) "cursor")
+		     (chk_mv (chk_mv_x) (chk_mv_y))
+		     (if (yevIsKeyDown eves Y_ESC_KEY)
+			 (mv_guy_next_out)
+			 (if (yevIsKeyDown eves Y_ENTER_KEY) (mv_guy_enter)
+			     (ywMapPushElem mb (yeCreateInt 1) (c_c_p) "cursor"))
+			 )
+		     ))))
 	      (mk_u_nfo (lambda (str)
 			  (begin
+			    (yeSetString str "")
 			    (yeStringAdd str "unit type:")
 			    (yeAddEnt str (yeGet (c_u) "type"))
 			    (yeStringAdd str "\nHP:")
 			    (yeStringAddInt str (yeGetIntAt (c_u) "hp"))
 			    (yeStringAdd str "\nMove Point:")
-			    (yeStringAddInt str (mvp))
+			    (yeStringAddInt str (- (+ (mvp) 1)
+						   (if (= (yeLen (mv_trace)) 0) 1
+						       (yeLen (mv_trace)))))
 			    (if (= (have_atk) 0)
 				(yeStringAdd str "\nCan Attack")
 				(yeStringAdd str "\nAlerady Attack"))
@@ -81,7 +128,6 @@
 		      (yeAddAt fwid "cur_unit" (- 1)))
 		  (if (yevIsKeyDown eves Y_RIGHT_KEY)
 		      (yeIncrAt fwid "cur_unit" ))
-		  (yeSetStringAt mbm "pre-text" "")
 		  (mk_u_nfo (yeGet mbm "pre-text"))
 		  (if (yevIsKeyDown eves Y_ESC_KEY)
 		      (map_out)
@@ -181,8 +227,9 @@
 		(yeCreateString "menu" mbm "<type>")
 		(yeCreateString "rgba: 127 127 127 255" mbm "background")
 		(yeCreateString "" mbm "pre-text")
-		(ywMenuPushEntry mbm "Move/Attack"
+		(ywMenuPushEntry mbm "Move"
 				 (yeCreateFunction "medba_tomap"))
+		(ywMenuPushEntry mbm "Attack")
 		(ywMenuPushEntry mbm "End Turn"
 				 (yeCreateFunction "medba_endturn"))
 		(ywMenuPushEntry mbm "End Game" (yeCreateString "FinishGame"))
