@@ -36,14 +36,6 @@
 		   (yeSetIntAt fwid "map_state" medba_map_choose_unit_state)
 		   (yeSetStringAt mbm "pre-text" "")
 		   )))
- 	      (mv_guy_next_out
-	       (lambda () (begin
-			    (yeForeach (mv_trace)
-				       (lambda (el a)
-					 (ywMapRemoveByStr mb el "mv-trace")
-					 ))
-			    (yeClearArray (mv_trace))
-			    (map_out))))
 
 	      (mvp (lambda () (yeGetIntAt (c_u) "mv")))
 	      (have_atk (lambda () (yeGetIntAt (c_u) "have_attack")))
@@ -54,15 +46,44 @@
  	      (chk_mv_y
 	       (lambda () (if (yevIsKeyDown eves Y_UP_KEY) -1
 			      (if (yevIsKeyDown eves Y_DOWN_KEY) 1 0) )))
+
+
+	      (clr_mv_t
+	       (lambda ()
+		 (yeForeach (mv_trace)
+			    (lambda (el a)
+			      (ywMapRemoveByStr mb el "mv-trace")
+			      ))
+		 ))
+	      (mv_guy_next_out
+	       (lambda ()
+		 (clr_mv_t)
+		 (yeClearArray (mv_trace))
+		 (map_out)))
+
+	      (mv_u
+	       (lambda (to)
+		 (clr_mv_t)
+		 (yeForeach (mv_trace)
+			    (lambda (el a)
+			      (display el)
+			      (ywMapMoveByEntity mb (c_u_p) el (c_u))
+			      (ywPosSet (c_u_p) el)
+			      (ywidRendMainWid)
+			      (yuiUsleep 300000)
+			      ))
+		 (ywMapMoveByEntity mb (c_u_p) to (c_u))
+		 (ywPosSet (c_u_p) to)
+		 ))
+
 	      (mv_guy
 	       (lambda ()
 		 (letrec
 		     (
 		      (mv_guy_enter
-		       (lambda () (begin
-				    (ywMapMoveByEntity mb (c_u_p) (c_c_p) (c_u))
-				    (ywPosSet (c_u_p) (c_c_p))
-				    (mv_guy_next_out))))
+		       (lambda ()
+			 (mv_u (c_c_p))
+			 (mv_guy_next_out)))
 		      (l_trc (lambda () (yeLast (mv_trace))))
 		      (restore_p
 		       (lambda (xy)
