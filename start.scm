@@ -5,6 +5,7 @@
 
   (define medba_map_choose_unit_state 0)
   (define medba_map_move_state 1)
+  (define medba_map_atk_state 2)
 
   (define medba_action
     (lambda (mb eves)
@@ -19,16 +20,101 @@
 	      (m_state (lambda () (yeGetIntAt fwid "map_state")))
 	      (c_u (lambda () (yeGet (p_units) (cur_u_idx))))
 	      (c_u_p (lambda () (yeGet (c_u) "pos")))
+	      (c_u_p2 (lambda (u) (yeGet u "pos")))
+	      (c_u_px (lambda (u) (ywPosX (c_u_p2 u))))
+	      (c_u_py (lambda (u) (ywPosY (c_u_p2 u))))
 	      (c_c_p (lambda () (yeGet mb "c_c_p")))
 	      (mv_trace (lambda () (yeGet mb "mv_trace")))
+	      (targets (lambda () (yeGet mb "targets")))
+	      (range (lambda () (yeGetIntAt (c_u) "range") ))
+
+	      (to_mv_state
+	       (lambda ()
+		 (yeSetIntAt fwid "map_state" medba_map_move_state)
+		 (yeReCreateArray mb "mv_trace")
+		 (yeCreateCopy (c_u_p) (mv_trace))
+		 (ywPosSet (c_c_p) (c_u_p))
+		 ))
+
+	      (mk_t_at_
+	       (lambda (x y p)
+		 (yePushBack (mv_trace) p)
+		 (ywMapPushNbr mb 1 p "mv-trace"))
+		 )
+	      (mk_t_at
+	       (lambda (x y)
+		 (mk_t_at_ x y (ywPosCreate x y))
+		 ))
+	      (mk_archer_trace_mx
+	       (lambda (x y)
+		 (if (> x 0) (mk_archer_trace_mx (- x 1) y))
+		 (mk_t_at x y)
+		 ))
+	      (mk_archer_trace_my
+	       (lambda (x y)
+		 (if (> y 0) (mk_archer_trace_my x (- y 1)))
+		 (mk_t_at x y)
+		 ))
+	      (mk_archer_trace_py
+	       (lambda (x y)
+		 (if (< (+ y 1) medba_map_h) (mk_archer_trace_py x (+ y 1)))
+		 (mk_t_at x y)
+		 ))
+	      (mk_archer_trace_px
+	       (lambda (x y)
+		 (if (< (+ x 1) medba_map_w) (mk_archer_trace_px (+ x 1) y))
+		 (mk_t_at x y)
+		 ))
+	      (mk_archer_targets
+	       (lambda ()
+		 (yeForeach (yeGet fwid "p1")
+			    (lambda (el a)
+			      (if (or (= (ywPosX (car a)) (c_u_px el) )
+				      (= (ywPosY (car a)) (c_u_py el) ))
+				  (yePushBack (cdr a) el))
+			      a
+			      )
+			    (cons (c_u_p) (targets)))
+		 (mk_archer_trace_px (+ (ywPosX (c_u_p)) 1) (ywPosY (c_u_p)))
+		 (mk_archer_trace_mx (- (ywPosX (c_u_p)) 1) (ywPosY (c_u_p)))
+		 (mk_archer_trace_py (ywPosX (c_u_p)) (+ (ywPosY (c_u_p)) 1))
+		 (mk_archer_trace_my (ywPosX (c_u_p)) (- (ywPosY (c_u_p)) 1))
+		 ))
+	      (mk_other_trace_x
+	       (lambda (x y ex)
+		 (unless (= x ex) (mk_other_trace_x (+ x 1) y ex))
+		 (unless (ywPosIsSame (c_u_p) x y) (mk_t_at x y))
+	       ))
+	      (mk_other_trace_y
+	       (lambda (x y ex ey)
+		 (unless (= y ey) (mk_other_trace_y x (+ y 1) ex ey))
+		 (mk_other_trace_x x y ex)
+	       ))
+	      (mk_other_targets
+	       (lambda ()
+		 (mk_other_trace_y (- (ywPosX (c_u_p)) (range))
+				   (- (ywPosY (c_u_p)) (range))
+				   (+ (ywPosX (c_u_p)) (range))
+				   (+ (ywPosY (c_u_p)) (range)))
+	       ))
+
+	      (to_atk_state
+	       (lambda ()
+		 (ywMapRemoveByStr mb (c_u_p) "cursor")
+		 (yeReCreateArray mb "mv_trace")
+		 (yeReCreateArray mb "targets")
+		 (yeSetIntAt fwid "map_state" medba_map_atk_state)
+		 (cond
+		  ((< (range) 0) (mk_archer_targets))
+		  (else (mk_other_targets))
+		   )
+		 ))
+
  	      (choose_guy_next_state
 	       (lambda ()
-		 (begin
-		   (yeSetIntAt fwid "map_state" medba_map_move_state)
-		   (yeReCreateArray mb "mv_trace")
-		   (yeCreateCopy (c_u_p) (mv_trace))
-		   (ywPosSet (c_c_p) (c_u_p))
-		   )))
+		 (if (= (yeGetIntAt mb "action_type") 0)
+		     (to_mv_state) (to_atk_state))
+		 ))
 	      (map_out
 	       (lambda ()
 		 (begin
@@ -76,10 +162,21 @@
 		 (ywPosSet (c_u_p) to)
 		 (if (not (= (mvp) 0))
 		     (yeAddAt (c_u) "mv" (- (- (yeLen (mv_trace)) 1))))
-		 (display (mvp))
-		 (display "  <----\n")
 		 ))
 
+	      (atk_guy
+	       (lambda ()
+		 (letrec ()
+		   (begin
+		     (display (yeGet (c_u) "range"))
+		     (display (yeLen (targets)))
+		     (display " attacking\n")
+		     (if (yevIsKeyDown eves Y_ESC_KEY)
+			 (mv_guy_next_out))
+		     )
+		   )
+		 )
+	       )
 	      (mv_guy
 	       (lambda ()
 		 (letrec
@@ -176,13 +273,9 @@
 		  )
 		))
 	      )
-	(begin
-	  (if (= (m_state) medba_map_choose_unit_state)
-	      (choose_guy)
-	      (if (= (m_state) medba_map_move_state)
-		  (mv_guy))
-	      )
-	  )
+	(cond ((= (m_state) medba_map_choose_unit_state) (choose_guy))
+	      ((= (m_state) medba_map_move_state) (mv_guy))
+	      ((= (m_state) medba_map_atk_state) (atk_guy)))
 	)
       )
     )
@@ -193,9 +286,18 @@
       )
     )
 
-  (define medba_tomap
+  (define medba_tomapmv
     (lambda (mn eves)
       (begin
+	(yeSetIntAt (ywCntGetEntry (ywCntWidgetFather mn) 0) "action_type" 0)
+	(yeSetIntAt (ywCntWidgetFather mn) "current" 0)
+	)
+      )
+    )
+  (define medba_tomapatk
+    (lambda (mn eves)
+      (begin
+	(yeSetIntAt (ywCntGetEntry (ywCntWidgetFather mn) 0) "action_type" 1)
 	(yeSetIntAt (ywCntWidgetFather mn) "current" 0)
 	)
       )
@@ -233,6 +335,7 @@
 		(ywMapInitEntity mb (mk_resources (yeCreateArray)) 0
 				 medba_map_w medba_map_h)
 		(yeCreateInt 80 mb "size")
+		(yeCreateInt 0 mb "action_type")
 		(yeCreateFunction "medba_action" mb "action")
 		(yeCreateString "rgba: 255 255 255 255" mb "background")
 		(ywPosCreate 0 0 mb "c_c_p")
@@ -250,7 +353,7 @@
 			   (lambda (el arg)
 			     (yePush el (yeGet el "rend_info1") "rend_info")
 			     (ywPosSetInts (yeGet el "pos")
-					   (+ (* (cdr arg) 2) 3) 0 )
+					   (+ (* (cdr arg) 2) 3) 1 )
 			     (yeCreateInt 1 el "player")
 			     (ywMapPushElem (car arg) el (yeGet el "pos") "p1u")
 			     (cons (car arg) (+ (cdr arg) 1))
@@ -264,8 +367,9 @@
 		(yeCreateString "rgba: 127 127 127 255" mbm "background")
 		(yeCreateString "" mbm "pre-text")
 		(ywMenuPushEntry mbm "Move"
-				 (yeCreateFunction "medba_tomap"))
-		(ywMenuPushEntry mbm "Attack")
+				 (yeCreateFunction "medba_tomapmv"))
+		(ywMenuPushEntry mbm "Attack"
+				 (yeCreateFunction "medba_tomapatk"))
 		(ywMenuPushEntry mbm "End Turn"
 				 (yeCreateFunction "medba_endturn"))
 		(ywMenuPushEntry mbm "End Game" (yeCreateString "FinishGame"))
