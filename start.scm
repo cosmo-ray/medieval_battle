@@ -6,6 +6,7 @@
   (define medba_map_choose_unit_state 0)
   (define medba_map_move_state 1)
   (define medba_map_atk_state 2)
+  (define medba_map_enemy_turn 3)
 
   (define medba_action
     (lambda (mb eves)
@@ -19,6 +20,7 @@
 	      (t_u_mrk (lambda () (if (= (cur_pl) 0) "p1u" "p0u")))
 	      (t_p (lambda (t) (yeGet t "pos")))
 	      (c_t_p (lambda () (t_p (c_t))))
+	      (cp_str (lambda () (if (= (cur_pl) 0) "p0" "p1") ))
 	      (c_u_mrk (lambda () (if (= (cur_pl) 0) "p0u" "p1u")))
 	      (t_units (lambda () (if (= (cur_pl) 0)
 				      (yeGet fwid "p1")
@@ -26,11 +28,11 @@
 	      (c_t_idx (lambda () (yeGetIntAt fwid "cur_target")))
 	      (c_t_by_idx (lambda (i) (yeGet (t_units) i)))
 	      (c_t (lambda () (yeGet (t_units) (c_t_idx))))
-	      (p_units (lambda () (if (= (cur_pl) 0)
+	      (c_units (lambda () (if (= (cur_pl) 0)
 				      (yeGet fwid "p0")
 				      (yeGet fwid "p1"))))
 	      (m_state (lambda () (yeGetIntAt fwid "map_state")))
-	      (c_u (lambda () (yeGet (p_units) (cur_u_idx))))
+	      (c_u (lambda () (yeGet (c_units) (cur_u_idx))))
 	      (c_u_p (lambda () (yeGet (c_u) "pos")))
 	      (c_u_p2 (lambda (u) (yeGet u "pos")))
 	      (c_u_px (lambda (u) (ywPosX (c_u_p2 u))))
@@ -79,7 +81,7 @@
 		 ))
 	      (mk_archer_targets
 	       (lambda ()
-		 (yeForeach (yeGet fwid "p1")
+		 (yeForeach (yeGet fwid (cp_str))
 			    (lambda (el a)
 			      (if (or (= (ywPosX (car a)) (c_u_px el) )
 				      (= (ywPosY (car a)) (c_u_py el) ))
@@ -129,9 +131,8 @@
 		  ((find_target_in_traces (c_t_by_idx idx))
 		   (yeSetIntAt fwid "cur_target" idx))
 		  (else (find_target_ (+ idx 1)))
-			)
-					; if find target set t idx and return, otherwise iterate to next
-	       ))
+		  )
+		 ))
 	      (find_target
 	       (lambda ()
  		 (display (cons "looking for target " (c_t_idx)))
@@ -210,7 +211,7 @@
 		 ))
 
 	      (can_atk (lambda () (> (c_t_idx) -1)))
-	      (do_atk
+	      (do_atk_
 	       (lambda ()
 		 (yeSetIntAt (c_u) "have_attack" 1)
 		 (yeSetStringAt mbm "pre-text" "BOOM\n")
@@ -223,10 +224,8 @@
 		 (yuiUsleep 1000000)
 		 (mk_u_nfo (yeGet mbm "pre-text") (c_t))
 		 (ywidRendMainWid)
-		 (yuiUsleep 1000000)
-		 (mv_guy_next_out)
-		 )
-	       )
+		 ))
+	      (do_atk (lambda () (do_atk_) (mv_guy_next_out) ) )
 	      (atk_guy
 	       (lambda ()
 		 (letrec ()
@@ -346,9 +345,112 @@
 		  (display "\n")
 		  )
 		))
-	      )
+
+	      (archer_can_atk
+	       (lambda (p)
+		 (yeForeach (t_units)
+			    (lambda (el a)
+			      (if a #t (or (= (ywPosX p) (c_u_px el) )
+					  (= (ywPosY p) (c_u_py el) )))
+			      ) #f)
+		 ))
+	      (archer_find_t
+	       (lambda ()
+		 (yeForeach (t_units)
+			    (lambda (el a)
+			      (if (< (ywPosDistance (c_u_p) (t_p el))
+				     (ywPosDistance (c_u_p) a))
+				  (t_p el) a)
+			      )
+			    (ywPosCreate 100 100))
+		 )
+	       )
+
+
+	      (add_push_mv_table (lambda(p x y)
+				   (yeCreateCopy p (mv_trace))
+				   (ywPosAddXY p x y)
+				  ))
+	      (archer_do_mv
+	       (lambda (t ml mp)
+		 (cond
+		  ( (< (ywPosX t) (ywPosX mp)) (add_push_mv_table mp -1 0) )
+		  ( (< (ywPosY t) (ywPosY mp)) (add_push_mv_table mp -1 0) )
+		  ( (> (ywPosX t) (ywPosX mp)) (add_push_mv_table mp 1 0) )
+		  ( (> (ywPosY t) (ywPosY mp)) (add_push_mv_table mp 1 0) )
+		  )
+		 (if (or (= ml 0) (archer_can_atk mp)) mp (archer_do_mv t (- ml 1) mp))
+		 ))
+
+	      (archer_mk_mv_trace
+	       (lambda (t)
+		 (display "archer mk mv trace ")
+		 (display t)
+		 (display (mv_trace))
+		 (display "\n")
+		 (yeCreateCopy (c_u_p) (mv_trace))
+		 (archer_do_mv t 5 (yeCreateCopy (c_u_p)))
+		 )
+	       )
+
+	      (archer_auto_mv
+	       (lambda ()
+		 (unless (archer_can_atk (c_u_p))
+		   (mv_u (archer_mk_mv_trace (archer_find_t))))
+		 (display "archer auto mv")
+		 (display (archer_can_atk (c_u_p)))
+		 ))
+
+	      (other_auto_mv
+	       (lambda ()
+		 (display "other auto mv")
+		 ))
+
+	      (soldier_of_ai
+	       (lambda ()
+		 (cond
+		  ((< (range) 0) (archer_auto_mv))
+		  (else (other_auto_mv))
+		  )
+		 (yeSetIntAt fwid "cur_target" -1)
+		 (cond
+		  ((< (range) 0) (mk_archer_targets))
+		  (else (mk_other_targets))
+		  )
+		 (find_target)
+		 (if (can_atk) (do_atk_))
+		 (clr_mv_t)
+		 (yeClearArray (mv_trace))
+		 ))
+
+	       (enemies_turn
+		(lambda ()
+		  (display "ENEMY TURN")
+		  (display (c_u_mrk))
+		  (display "\n")
+		  (yeReCreateArray mb "mv_trace")
+		  (yeReCreateArray mb "targets")
+		  (yeForeach (c_units)
+			     (lambda (el a)
+			       (yeSetIntAt fwid "cur_unit"
+					   (yeArrayIdx_ent (c_units) el))
+			       (soldier_of_ai)
+			       ))
+		  (display "\n")
+					; reset player stats V
+		  (yeForeach (t_units)
+			     (lambda (el a)
+			       (yeSetIntAt el "have_attack" 0)
+			       (yeSetIntAt el "mv" 5)
+			       ))
+		  (yeSetIntAt fwid "cur_unit" 0)
+		  (yeSetIntAt fwid "cur_player" 0)
+		  (map_out)
+		  ))
+	       )
 	(cond ((= (m_state) medba_map_choose_unit_state) (choose_guy))
 	      ((= (m_state) medba_map_move_state) (mv_guy))
+	      ((= (m_state) medba_map_enemy_turn) (enemies_turn))
 	      ((= (m_state) medba_map_atk_state) (atk_guy)))
 	)
       )
@@ -356,7 +458,18 @@
 
   (define medba_endturn
     (lambda (mn eves)
-      (display "\nMEDBA ENDTURN \n\n")
+      (let(
+	   (mbc (ywCntWidgetFather mn))
+	   )
+	(begin
+	  (display "\nMEDBA ENDTURN \n\n")
+	  (yeSetIntAt mbc "cur_player" 1)
+	  (display "do enemy turn\n" )
+	  (yeSetIntAt mbc "cur_unit" 0)
+	  (yeSetIntAt mbc "current" 0)
+	  (yeSetIntAt mbc "map_state" medba_map_enemy_turn)
+	  )
+	)
       )
     )
 
