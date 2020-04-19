@@ -396,7 +396,7 @@
 				(yeCreateArray ra) "map-color")
 		(yeCreateString "rgba: 127 255 127 127"
 				(yeCreateArray ra) "map-color")
-		(mk_elem (yeCreateArray ra) "W" "./sword--.png" "swordman")
+		(mk_elem (yeCreateArray ra) "W" "./sword.png" "swordman")
 		(mk_elem (yeCreateArray ra) "S" "./spear.png" "spearman")
 		(mk_elem (yeCreateArray ra) "A" "./archer.png" "archer")
 		(mk_elem (yeCreateArray ra) "^" "./arrow_up.png" "arrow_up")
