@@ -168,7 +168,7 @@
 		   )))
 
 	      (mvp (lambda (u) (yeGetIntAt u "mv")))
-	      (have_atk (lambda () (yeGetIntAt (c_u) "have_attack")))
+	      (have_atk (lambda (u) (yeGetIntAt u "have_attack")))
 
  	      (chk_mv_x
 	       (lambda () (if (yevIsKeyDown eves Y_LEFT_KEY) -1
@@ -201,7 +201,7 @@
 			      (ywMapMoveByEntity mb (c_u_p) el (c_u))
 			      (ywPosSet (c_u_p) el)
 			      (ywidRendMainWid)
-			      (yuiUsleep 300000)
+			      (yuiUsleep 200000)
 			      ))
 		 (ywMapMoveByEntity mb (c_u_p) to (c_u))
 		 (ywPosSet (c_u_p) to)
@@ -210,13 +210,29 @@
 		 ))
 
 	      (can_atk (lambda () (> (c_t_idx) -1)))
-	      (do_atk (lambda () (> (c_t_idx) -1)))
+	      (do_atk
+	       (lambda ()
+		 (yeSetIntAt (c_u) "have_attack" 1)
+		 (yeSetStringAt mbm "pre-text" "BOOM\n")
+		 (yeStringAdd (yeGet mbm "pre-text") "do dmg: ")
+		 (yeStringAddInt (yeGet mbm "pre-text") (yeGetIntAt (c_u) "atk"))
+		 (yeStringAdd (yeGet mbm "pre-text") "\nHP left: ")
+		 (yeAddAt (c_t) "hp" (- (yeGetIntAt (c_u) "atk")))
+		 (yeStringAddInt (yeGet mbm "pre-text") (yeGetIntAt (c_t) "hp"))
+		 (ywidRendMainWid)
+		 (yuiUsleep 1000000)
+		 (mk_u_nfo (yeGet mbm "pre-text") (c_t))
+		 (ywidRendMainWid)
+		 (yuiUsleep 1000000)
+		 (mv_guy_next_out)
+		 )
+	       )
 	      (atk_guy
 	       (lambda ()
 		 (letrec ()
 		   (begin
 		     (if (not (can_atk))
-			 (yeSetIntAt mbm "pre-text" "No Valide Target")
+			 (yeSetStringAt mbm "pre-text" "No Valide Target")
 			 (begin (mk_u_nfo (yeGet mbm "pre-text") (c_t))
 				(ywMapRemoveByStr mb (c_t_p) "cursor")))
 		     (display (yeGet (c_u) "range"))
@@ -305,7 +321,7 @@
 					      (if (= (yeLen (mv_trace)) 0) 1
 						  (yeLen (mv_trace)))))
 		       )
-		   (if (= (have_atk) 0)
+		   (if (= (have_atk u) 0)
 		       (yeStringAdd str "\nCan Attack")
 		       (yeStringAdd str "\nAlerady Attack"))
 		   (yeStringAdd str "\n-------------")
@@ -324,7 +340,7 @@
 		      (map_out)
 		      (ywMapPushElem mb (yeCreateInt 2) (c_u_p) "cursor")
 		      )
-		  (if (and (yevIsKeyDown eves Y_ENTER_KEY) (= (have_atk) 0))
+		  (if (and (yevIsKeyDown eves Y_ENTER_KEY) (= (have_atk (c_u)) 0))
 		      (choose_guy_next_state))
 		  (display (yeGetIntAt fwid "map_state"))
 		  (display "\n")
@@ -463,10 +479,11 @@
 		  (ywPosCreate (- 11) 0 r_info "threshold")
 		    ))
 	       (mob_init
-		(lambda (mb t hp range rid)
+		(lambda (mb t hp range atk rid)
 		  (begin
 		    (yeCreateString t mb "type")
 		    (yeCreateInt hp mb "hp")
+		    (yeCreateInt atk mb "atk")
 		    (yeCreateInt range mb "range")
 		    (yeCreateInt rid mb "id")
 		    (ywPosCreate 0 0 mb "pos")
@@ -479,11 +496,11 @@
 		(lambda (wid)
 		  (begin
 		    (yeCreateString "medieval_battle" wid "<type>")
-		    (mob_init (yeCreateArray mobs) "archer" 6 -1 5)
-		    (mob_init (yeCreateArray mobs) "spearman" 10 2 4)
-		    (mob_init (yeCreateArray mobs) "swordman" 13 1 3)
-		    (mob_init (yeCreateArray mobs) "spearman" 10 2 4)
-		    (mob_init (yeCreateArray mobs) "archer" 6 -1 5)
+		    (mob_init (yeCreateArray mobs) "archer" 6 -1 2 5)
+		    (mob_init (yeCreateArray mobs) "spearman" 10 2 4 4)
+		    (mob_init (yeCreateArray mobs) "swordman" 13 1 5 3)
+		    (mob_init (yeCreateArray mobs) "spearman" 10 2 4 4)
+		    (mob_init (yeCreateArray mobs) "archer" 6 -1 2 5)
 		    (yeCreateCopy mobs wid "p0")
 		    (yeCreateCopy mobs wid "p1")
 		    wid
