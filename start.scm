@@ -113,16 +113,9 @@
 		 ))
 	      (find_target_in_traces
 	       (lambda (t)
-		 (display
-		  (yeForeach (mv_trace)
-			     (lambda (el a)
-			       (if a #t (ywPosIsSame el (t_p t)))) #f) )
-		 (display "\n")
-
 		 (yeForeach (mv_trace)
 			    (lambda (el a)
-			      (if a #t (ywPosIsSame el (t_p t)))
-			      ) #f)
+			      (if a #t (ywPosIsSame el (t_p t))) ) #f)
 		 ))
 	      (find_target_
 	       (lambda (idx)
@@ -133,15 +126,7 @@
 		  (else (find_target_ (+ idx 1)))
 		  )
 		 ))
-	      (find_target
-	       (lambda ()
- 		 (display (cons "looking for target " (c_t_idx)))
-		 (display "\n")
-		 (find_target_ (c_t_idx))
- 		 (display (cons "<---- " (c_t_idx)))
-		 (display "\n")
-		 ; for each units from 0 to (yeLen (t_units))
-	       ))
+	      (find_target (lambda () (find_target_ (c_t_idx)) ))
 	      (to_atk_state
 	       (lambda ()
 		 (ywMapRemoveByStr mb (c_u_p) "cursor")
@@ -198,7 +183,6 @@
 		 (clr_mv_t)
 		 (yeForeach (mv_trace)
 			    (lambda (el a)
-			      (display el)
 			      (ywMapMoveByEntity mb (c_u_p) el (c_u))
 			      (ywPosSet (c_u_p) el)
 			      (ywidRendMainWid)
@@ -211,6 +195,13 @@
 		 ))
 
 	      (can_atk (lambda () (> (c_t_idx) -1)))
+	      (rm_target
+	       (lambda ()
+		 (yeSetStringAt mbm "pre-text" "DEAD\n")
+		 (ywMapRemoveByStr mb (c_t_p) (t_u_mrk))
+		 (yeRemoveChildByEntity (t_units) (c_t))
+		 )
+	       )
 	      (do_atk_
 	       (lambda ()
 		 (yeSetIntAt (c_u) "have_attack" 1)
@@ -223,6 +214,9 @@
 		 (ywidRendMainWid)
 		 (yuiUsleep 1000000)
 		 (mk_u_nfo (yeGet mbm "pre-text") (c_t))
+		 (ywidRendMainWid)
+		 (if (< (yeGetIntAt (c_t) "hp") 1) (rm_target))
+		 (yuiUsleep 600000)
 		 (ywidRendMainWid)
 		 ))
 	      (do_atk (lambda () (do_atk_) (mv_guy_next_out) ) )
@@ -354,12 +348,12 @@
 					  (= (ywPosY p) (c_u_py el) )))
 			      ) #f)
 		 ))
-	      (archer_find_t
+	      (find_t
 	       (lambda ()
 		 (yeForeach (t_units)
 			    (lambda (el a)
-			      (if (< (ywPosDistance (c_u_p) (t_p el))
-				     (ywPosDistance (c_u_p) a))
+			      (if (< (ywPosTotCases (c_u_p) (t_p el))
+				     (ywPosTotCases (c_u_p) a))
 				  (t_p el) a)
 			      )
 			    (ywPosCreate 100 100))
@@ -375,19 +369,16 @@
 	       (lambda (t ml mp)
 		 (cond
 		  ( (< (ywPosX t) (ywPosX mp)) (add_push_mv_table mp -1 0) )
-		  ( (< (ywPosY t) (ywPosY mp)) (add_push_mv_table mp -1 0) )
+		  ( (< (ywPosY t) (ywPosY mp)) (add_push_mv_table mp  0 -1) )
 		  ( (> (ywPosX t) (ywPosX mp)) (add_push_mv_table mp 1 0) )
-		  ( (> (ywPosY t) (ywPosY mp)) (add_push_mv_table mp 1 0) )
+		  ( (> (ywPosY t) (ywPosY mp)) (add_push_mv_table mp 0 1) )
 		  )
-		 (if (or (= ml 0) (archer_can_atk mp)) mp (archer_do_mv t (- ml 1) mp))
+		 (if (or (= ml 0) (archer_can_atk mp))
+		     mp (archer_do_mv t (- ml 1) mp))
 		 ))
 
 	      (archer_mk_mv_trace
 	       (lambda (t)
-		 (display "archer mk mv trace ")
-		 (display t)
-		 (display (mv_trace))
-		 (display "\n")
 		 (yeCreateCopy (c_u_p) (mv_trace))
 		 (archer_do_mv t 5 (yeCreateCopy (c_u_p)))
 		 )
@@ -396,14 +387,51 @@
 	      (archer_auto_mv
 	       (lambda ()
 		 (unless (archer_can_atk (c_u_p))
-		   (mv_u (archer_mk_mv_trace (archer_find_t))))
-		 (display "archer auto mv")
-		 (display (archer_can_atk (c_u_p)))
+		   (mv_u (archer_mk_mv_trace (find_t))))
 		 ))
+
+	      (other_do_mv
+	       (lambda (t ml mp)
+		 (cond
+		  ( (< (ywPosX t) (ywPosX mp)) (add_push_mv_table mp -1 0) )
+		  ( (< (ywPosY t) (ywPosY mp)) (add_push_mv_table mp  0 -1) )
+		  ( (> (ywPosX t) (ywPosX mp)) (add_push_mv_table mp 1 0) )
+		  ( (> (ywPosY t) (ywPosY mp)) (add_push_mv_table mp 0 1) )
+		  )
+		 (if (or (= ml 0) (other_can_atk mp (yeCreateCopy (mv_trace))
+						 (yeCreateCopy (c_u_p))))
+		     mp (other_do_mv t (- ml 1) mp))
+		 ))
+
+	      (other_mk_mv_trace
+	       (lambda (t)
+		 (yeCreateCopy (c_u_p) (mv_trace))
+		 (other_do_mv t 5 (yeCreateCopy (c_u_p)))
+		 )
+	       )
+
+	      (other_can_atk
+	       (lambda (p cpt cpp)
+		 (yeSetIntAt fwid "cur_target" -1)
+		 (yeClearArray (mv_trace))
+		 (yeCopy p (c_u_p))
+		 (mk_other_targets)
+		 (find_target)
+		 (clr_mv_t)
+		 (yeCopy cpt (mv_trace))
+		 (yeCopy cpp (c_u_p))
+		 (display "(can_atk): ")
+		 (display (can_atk))
+		 (display "\n")
+		 (can_atk)
+		 ))
+
 
 	      (other_auto_mv
 	       (lambda ()
-		 (display "other auto mv")
+		 (unless (other_can_atk (c_u_p) (yeCreateCopy (mv_trace))
+					(yeCreateCopy (c_u_p)))
+		   (mv_u (other_mk_mv_trace (find_t))))
 		 ))
 
 	      (soldier_of_ai
@@ -425,9 +453,6 @@
 
 	       (enemies_turn
 		(lambda ()
-		  (display "ENEMY TURN")
-		  (display (c_u_mrk))
-		  (display "\n")
 		  (yeReCreateArray mb "mv_trace")
 		  (yeReCreateArray mb "targets")
 		  (yeForeach (c_units)
@@ -609,11 +634,11 @@
 		(lambda (wid)
 		  (begin
 		    (yeCreateString "medieval_battle" wid "<type>")
-		    (mob_init (yeCreateArray mobs) "archer" 6 -1 2 5)
-		    (mob_init (yeCreateArray mobs) "spearman" 10 2 4 4)
-		    (mob_init (yeCreateArray mobs) "swordman" 13 1 5 3)
-		    (mob_init (yeCreateArray mobs) "spearman" 10 2 4 4)
-		    (mob_init (yeCreateArray mobs) "archer" 6 -1 2 5)
+		    (mob_init (yeCreateArray mobs) "archer"   6  -1 2 5)
+		    (mob_init (yeCreateArray mobs) "spearman" 10  2 4 4)
+		    (mob_init (yeCreateArray mobs) "swordman" 13  1 5 3)
+		    (mob_init (yeCreateArray mobs) "spearman" 10  2 4 4)
+		    (mob_init (yeCreateArray mobs) "archer"   6  -1 2 5)
 		    (yeCreateCopy mobs wid "p0")
 		    (yeCreateCopy mobs wid "p1")
 		    wid
