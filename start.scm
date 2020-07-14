@@ -242,9 +242,6 @@
 			 (yeSetStringAt mbm "pre-text" "No Valide Target")
 			 (begin (mk_u_nfo (yeGet mbm "pre-text") (c_t))
 				(ywMapRemoveByStr mb (c_t_p) "cursor")))
-		     (display (yeGet (c_u) "range"))
-		     (display (yeLen (targets)))
-		     (display " attacking\n")
 		     (cond ((yevIsKeyDown eves Y_ESC_KEY) (mv_guy_next_out))
 			   ((and (can_atk) (yevIsKeyDown eves Y_ENTER_KEY))
 			    (do_atk))
@@ -281,7 +278,8 @@
 		       (lambda (xy)
 			 (if (ywMapContainEnt mb (car xy) (cdr xy) (c_u)) 0
 			     (if (ywMapContainStr mb (car xy) (cdr xy) (c_u_mrk)) 1
-				 (if (ywMapContainStr mb (car xy) (cdr xy) (t_u_mrk)) 2 0)))
+				 (if (ywMapContainStr mb (car xy) (cdr xy)
+						      (t_u_mrk)) 2 0)))
 			 )
 		       )
 		      (chk_can_mv
@@ -349,8 +347,6 @@
 		      )
 		  (if (and (yevIsKeyDown eves Y_ENTER_KEY) (= (have_atk (c_u)) 0))
 		      (choose_guy_next_state))
-		  (display (yeGetIntAt fwid "map_state"))
-		  (display "\n")
 		  )
 		))
 
@@ -434,9 +430,6 @@
 		 (clr_mv_t)
 		 (yeCopy cpt (mv_trace))
 		 (yeCopy cpp (c_u_p))
-		 (display "(can_atk): ")
-		 (display (can_atk))
-		 (display "\n")
 		 (can_atk)
 		 ))
 
@@ -475,7 +468,6 @@
 					   (yeArrayIdx_ent (c_units) el))
 			       (soldier_of_ai)
 			       ))
-		  (display "\n")
 					; reset player stats V
 		  (yeForeach (t_units)
 			     (lambda (el a)
@@ -501,9 +493,7 @@
 	   (mbc (ywCntWidgetFather mn))
 	   )
 	(begin
-	  (display "\nMEDBA ENDTURN \n\n")
 	  (yeSetIntAt mbc "cur_player" 1)
-	  (display "do enemy turn\n" )
 	  (yeSetIntAt mbc "cur_unit" 0)
 	  (yeSetIntAt mbc "current" 0)
 	  (yeSetIntAt mbc "map_state" medba_map_enemy_turn)
@@ -529,7 +519,51 @@
       )
     )
 
-  (define medba_init
+  (define medba_destroy
+    (lambda (c) (ywSetTurnLengthOverwrite (yeGetIntAt c "otime")))
+    )
+
+
+
+  (define medba_dinit
+   (lambda (wid unused)
+      (letrec ((mk_dumb_rend
+		(lambda (r_info y)
+		  (ywRectCreate 5 (+ 1032 y) 45 60 r_info "src")
+		  (ywPosCreate (- 11) 0 r_info "threshold")
+		  ))
+	       (mob_init
+		(lambda (mb t hp range atk rid)
+		  (begin
+		    (yeCreateString t mb "type")
+		    (yeCreateInt hp mb "hp")
+		    (yeCreateInt atk mb "atk")
+		    (yeCreateInt range mb "range")
+		    (yeCreateInt rid mb "id")
+		    (ywPosCreate 0 0 mb "pos")
+		    (yeCreateInt 5 mb "mv")
+		    (yeCreateInt 0 mb "have_attack")
+		    (mk_dumb_rend (yeCreateArray mb "rend_info0") 0)
+		    (mk_dumb_rend (yeCreateArray mb "rend_info1") 130)
+		    )))
+	       (mob_init_all
+		(lambda (wid mobs)
+		  (begin
+		    (mob_init (yeCreateArray mobs) "archer"   6  -1 2 5)
+		    (mob_init (yeCreateArray mobs) "spearman" 10  2 4 4)
+		    (mob_init (yeCreateArray mobs) "swordman" 13  1 5 3)
+		    (mob_init (yeCreateArray mobs) "spearman" 10  2 4 4)
+		    (mob_init (yeCreateArray mobs) "archer"   6  -1 2 5)
+		    (yeCreateCopy mobs wid "p0")
+		    (yeCreateCopy mobs wid "p1")
+		    wid
+		    ))))
+	(medba_init (mob_init_all wid (yeCreateArray)) ())
+	)
+      )
+   )
+
+   (define medba_init
     (lambda (wid unused_type)
       (letrec
 	  (
@@ -543,7 +577,8 @@
 	   (mk_resources
 	    (lambda (ra)
 	      (begin
-		(mk_elem (yeCreateArray ra) "." "./floor.png" "floor")
+		;(mk_elem (yeCreateArray ra) "." "./floor.png" "floor")
+		(yeCreateString "." (yeCreateArray ra) "map-char")
 		(yeCreateString "rgba: 255 127 13 127"
 				(yeCreateArray ra) "map-color")
 		(yeCreateString "rgba: 127 255 127 127"
@@ -558,6 +593,7 @@
 	    (lambda (mb mbc)
 	      (begin
 		(yeCreateString "map" mb "<type>")
+		(ygModDir "medieval_battle")
 		(ywMapInitEntity mb (mk_resources (yeCreateArray)) 0
 				 medba_map_w medba_map_h)
 		(yeCreateInt 80 mb "size")
@@ -584,6 +620,7 @@
 			     (ywMapPushElem (car arg) el (yeGet el "pos") "p1u")
 			     (cons (car arg) (+ (cdr arg) 1))
 			     ) (cons mb 0))
+		(ygModDirOut)
 
 		mb)))
 	   (init_medba_mn
@@ -598,7 +635,10 @@
 				 (yeCreateFunction "medba_tomapatk"))
 		(ywMenuPushEntry mbm "End Turn"
 				 (yeCreateFunction "medba_endturn"))
-		(ywMenuPushEntry mbm "End Game" (yeCreateString "FinishGame"))
+		(ywMenuPushEntry mbm "End Game"
+				 (if (yeIsChild mbc "quit")
+				     (yeGet mbc "quit")
+				     (yeCreateString "FinishGame")))
 		mbm
 		))
 	   )
@@ -606,6 +646,9 @@
 	    (lambda (mbc)
 	      (begin
 		(yeCreateInt 0 mbc "cur_player")
+		(yeCreateFunction "medba_destroy" mbc "destroy")
+		(yeCreateInt (ywGetTurnLengthOverwrite) mbc "otime")
+		(ywSetTurnLengthOverwrite 0)
 		(yeCreateInt medba_map_choose_unit_state mbc "map_state")
 		(yeCreateString "vertical" mbc "cnt-type")
 		(yeCreateInt 0 mbc "cur_unit")
@@ -624,47 +667,19 @@
   (define mod_init
     (lambda (mod)
       (letrec ((init (yeCreateArray) )
-	       (mobs (yeCreateArray) )
-	       (mk_dumb_rend
-		(lambda (r_info y)
-		  (ywRectCreate 5 (+ 1032 y) 45 60 r_info "src")
-		  (ywPosCreate (- 11) 0 r_info "threshold")
-		    ))
-	       (mob_init
-		(lambda (mb t hp range atk rid)
-		  (begin
-		    (yeCreateString t mb "type")
-		    (yeCreateInt hp mb "hp")
-		    (yeCreateInt atk mb "atk")
-		    (yeCreateInt range mb "range")
-		    (yeCreateInt rid mb "id")
-		    (ywPosCreate 0 0 mb "pos")
-		    (yeCreateInt 5 mb "mv")
-		    (yeCreateInt 0 mb "have_attack")
-		    (mk_dumb_rend (yeCreateArray mb "rend_info0") 0)
-		    (mk_dumb_rend (yeCreateArray mb "rend_info1") 130)
-		    )))
-	       (init_test_wid
-		(lambda (wid)
-		  (begin
-		    (yeCreateString "medieval_battle" wid "<type>")
-		    (mob_init (yeCreateArray mobs) "archer"   6  -1 2 5)
-		    (mob_init (yeCreateArray mobs) "spearman" 10  2 4 4)
-		    (mob_init (yeCreateArray mobs) "swordman" 13  1 5 3)
-		    (mob_init (yeCreateArray mobs) "spearman" 10  2 4 4)
-		    (mob_init (yeCreateArray mobs) "archer"   6  -1 2 5)
-		    (yeCreateCopy mobs wid "p0")
-		    (yeCreateCopy mobs wid "p1")
-		    wid
-		    ))))
+	       (init2 (yeCreateArray) )
+	       )
 	(begin
 	  (yeCreateString "medieval_battle" mod "name")
 	  (ywSizeCreate 800 600 mod "window size")
 	  (yeCreateString "test" mod "starting widget")
 	  (yeCreateFunction "medba_init" init "callback")
 	  (yeCreateString "medieval_battle" init "name")
-	  (init_test_wid (yeCreateArray mod "test"))
+	  (yeCreateFunction "medba_dinit" init2 "callback")
+	  (yeCreateString "medieval_dbattle" init2 "name")
+	  (yeCreateString "medieval_dbattle" (yeCreateArray mod "test") "<type>")
 	  (ywidAddSubType init)
+	  (ywidAddSubType init2)
 	  mod
 	  )
 	)
