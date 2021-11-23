@@ -571,26 +571,26 @@
       (letrec
 	  (
 	   (mk_elem
-	    (lambda (el c p n)
+	    (lambda (el c p n t)
 	      (begin
 		(yeCreateString c el "map-char")
-		(yeCreateString p el "map-sprite")
+		(yeCreateString p el t)
 		(yeCreateString n el "name")
 		)))
 	   (mk_resources
 	    (lambda (ra)
 	      (begin
-		;(mk_elem (yeCreateArray ra) "." "./floor.png" "floor")
-		(yeCreateString "." (yeCreateArray ra) "map-char")
+		(mk_elem (yeCreateArray ra) "." "./floor.png" "floor"  "map-tild")
+		;(yeCreateString "." (yeCreateArray ra) "map-char")
 		(yeCreateString "rgba: 255 127 13 127"
 				(yeCreateArray ra) "map-color")
 		(yeCreateString "rgba: 127 255 127 127"
 				(yeCreateArray ra) "map-color")
-		(mk_elem (yeCreateArray ra) "W" "./sword.png" "swordman")
-		(mk_elem (yeCreateArray ra) "S" "./spear.png" "spearman")
-		(mk_elem (yeCreateArray ra) "A" "./archer.png" "archer")
-		(mk_elem (yeCreateArray ra) "^" "./arrow_up.png" "arrow_up")
-		(mk_elem (yeCreateArray ra) "v" "./arrow_down.png" "arrow_down")
+		(mk_elem (yeCreateArray ra) "W" "./sword.png" "swordman" "map-sprite")
+		(mk_elem (yeCreateArray ra) "S" "./spear.png" "spearman" "map-sprite")
+		(mk_elem (yeCreateArray ra) "A" "./archer.png" "archer" "map-sprite")
+		(mk_elem (yeCreateArray ra) "^" "./arrow_up.png" "arrow_up" "map-sprite")
+		(mk_elem (yeCreateArray ra) "v" "./arrow_down.png" "arrow_down" "map-sprite")
 		ra)))
 	   (init_medba
 	    (lambda (mb mbc)
