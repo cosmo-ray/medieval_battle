@@ -134,12 +134,14 @@
 	      (find_target_
 	       (lambda (idx)
 		 (cond
+		  ((< idx 0) (find_target_ 0))
 		  ((= idx (yeLen (t_units))) ())
 		  ((find_target_in_traces (c_t_by_idx idx))
 		   (yeSetIntAt fwid "cur_target" idx))
 		  (else (find_target_ (+ idx 1)))
 		  )
-		 ))
+		 )
+	       )
 	      (find_target (lambda () (find_target_ (c_t_idx)) ))
 	      (to_atk_state
 	       (lambda ()
@@ -552,11 +554,11 @@
 	       (mob_init_all
 		(lambda (wid mobs)
 		  (begin
-		    (mob_init (yeCreateArray mobs) "archer"   6  -1 2 5)
-		    (mob_init (yeCreateArray mobs) "spearman" 10  2 4 4)
-		    (mob_init (yeCreateArray mobs) "swordman" 13  1 5 3)
-		    (mob_init (yeCreateArray mobs) "spearman" 10  2 4 4)
-		    (mob_init (yeCreateArray mobs) "archer"   6  -1 2 5)
+		    (mob_init (yeCreateArray mobs) "archer"   1  -1 2 5)
+		    (mob_init (yeCreateArray mobs) "spearman" 1  2 4 4)
+		    (mob_init (yeCreateArray mobs) "swordman" 1  1 5 3)
+		    (mob_init (yeCreateArray mobs) "spearman" 1  2 4 4)
+		    (mob_init (yeCreateArray mobs) "archer"   1  -1 2 5)
 		    (yeCreateCopy mobs wid "p0")
 		    (yeCreateCopy mobs wid "p1")
 		    wid
