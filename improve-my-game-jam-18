@@ -1,0 +1,3 @@
+* Fix crashs on enemy turn
+* Print floor (fix in the engine)
+* Allow each eneies to play they turn (fix in the engine)
