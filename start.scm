@@ -554,11 +554,11 @@
 	       (mob_init_all
 		(lambda (wid mobs)
 		  (begin
-		    (mob_init (yeCreateArray mobs) "archer"   1  -1 2 5)
-		    (mob_init (yeCreateArray mobs) "spearman" 1  2 4 4)
-		    (mob_init (yeCreateArray mobs) "swordman" 1  1 5 3)
-		    (mob_init (yeCreateArray mobs) "spearman" 1  2 4 4)
-		    (mob_init (yeCreateArray mobs) "archer"   1  -1 2 5)
+		    (mob_init (yeCreateArray mobs) "archer"   6  -1 2 5)
+		    (mob_init (yeCreateArray mobs) "spearman" 10  2 4 4)
+		    (mob_init (yeCreateArray mobs) "swordman" 13  1 5 3)
+		    (mob_init (yeCreateArray mobs) "spearman" 10  2 4 4)
+		    (mob_init (yeCreateArray mobs) "archer"   6  -1 2 5)
 		    (yeCreateCopy mobs wid "p0")
 		    (yeCreateCopy mobs wid "p1")
 		    wid
