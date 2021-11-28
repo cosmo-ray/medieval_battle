@@ -1,3 +1,4 @@
 * Fix crashs on enemy turn
 * Print floor (fix in the engine)
 * Allow each eneies to play they turn (fix in the engine)
+* Automatically build my engine in github action for linux, and use latest to package this game.
